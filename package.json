@@ -15,7 +15,7 @@
     "test:e2e": "npm run build && playwright test",
     "test:packaged": "node scripts/smoke-packaged.mjs",
     "build:ocr": "node scripts/prepare-ocr-runtime.mjs",
-    "dist:win": "npm run build:ocr && npm run verify:release && npm run build && node scripts/prepare-electron-dist.mjs && node scripts/with-local-temp.mjs node_modules/electron-builder/out/cli/cli.js --win --x64",
+    "dist:win": "npm run build:ocr && npm run verify:release && npm run build && node scripts/prepare-electron-dist.mjs && node scripts/with-local-temp.mjs node_modules/electron-builder/out/cli/cli.js --win --x64 --publish never",
     "postinstall": "node scripts/check-native.mjs",
     "verify:release": "node scripts/verify-release.mjs"
   },
