@@ -1,0 +1,38 @@
+name: Windows checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run verify:release -- --source-only
+      - run: npm audit --registry=https://registry.npmjs.org
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:e2e
+      - name: Prepare OCR build environment
+        shell: pwsh
+        run: |
+          python -m venv .tmp/ocr-venv
+          .tmp/ocr-venv/Scripts/python.exe -m pip install -r scripts/ocr/requirements.txt
+          "INVOICE_OCR_PYTHON=$((Resolve-Path .tmp/ocr-venv/Scripts/python.exe).Path)" >> $env:GITHUB_ENV
+      - run: npm run dist:win
+      - run: npm run test:packaged
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: artifacts/*/*.exe

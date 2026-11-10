@@ -1,0 +1,33 @@
+appId: com.charien.invoice-management
+productName: 智能发票管理
+executableName: InvoiceManagement
+npmRebuild: false
+electronDist: .tmp/electron-dist
+directories:
+  output: artifacts
+files:
+  - out/**
+  - resources/**
+  - package.json
+  - LICENSE
+  - THIRD_PARTY_NOTICES.md
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**"
+  - "**/node_modules/@napi-rs/canvas/**"
+extraResources:
+  - from: .tmp/ocr-runtime
+    to: ocr
+    filter: ['**/*']
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: Invoice-Management-${version}-Windows-x64.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  selectPerMachineByDefault: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

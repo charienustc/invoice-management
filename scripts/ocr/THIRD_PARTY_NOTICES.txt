@@ -1,0 +1,22 @@
+Bundled OCR component
+
+PaddleOCR / PP-OCRv6 models - Apache-2.0
+https://github.com/PaddlePaddle/PaddleOCR
+ONNX model conversion/distribution: RapidAI/RapidOCR, fixed v3.10.0 model routes.
+https://github.com/RapidAI/RapidOCR
+https://www.modelscope.cn/models/RapidAI/RapidOCR
+
+RapidOCR - Apache-2.0
+ONNX Runtime - MIT
+https://github.com/microsoft/onnxruntime
+OpenCV and opencv-python - Apache-2.0, additional bundled codec notices in licenses/
+https://github.com/opencv/opencv-python
+NumPy - BSD and bundled numerical library licenses in licenses/
+https://numpy.org/
+Python - Python Software Foundation License, see licenses/PYTHON-LICENSE.txt
+https://docs.python.org/3/license.html
+PyInstaller - GPL with bootloader exception permitting redistribution of bundled applications
+https://pyinstaller.org/en/stable/license.html
+
+Dependency license files are included in licenses/. This component contains a
+Python runtime. It operates locally and does not contact an OCR web service.

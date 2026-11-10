@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic fixture: tests/fixtures/mcp-fixture.ts. Answers are integer cents or counts unless stated otherwise. -->
+<evaluation>
+  <qa_pair><question>读取应用概况并核对所有已确认记录。排除回收站和未确认记录后，金额合计是多少分？</question><answer>39800</answer></qa_pair>
+  <qa_pair><question>对照当前库的有效发票总数与已确认汇总，有多少张有效发票尚未确认？</question><answer>1</answer></qa_pair>
+  <qa_pair><question>找出说明中涉及实验室电脑与配件的项目，再读取该项目汇总。已确认金额合计是多少分？</question><answer>31800</answer></qa_pair>
+  <qa_pair><question>分页查看有效发票的日期，再核对 2026 年 11 月已确认汇总；该月金额合计是多少分？</question><answer>34800</answer></qa_pair>
+  <qa_pair><question>先读取工具使用约定中“已提交”的内部状态，再查该状态的已确认有效发票；这些记录金额共多少分？</question><answer>13600</answer></qa_pair>
+  <qa_pair><question>查找没有所属项目的有效发票，对照其审核状态与统计结果，其中已确认的金额共多少分？</question><answer>3000</answer></qa_pair>
+  <qa_pair><question>从已有标签中找到差旅标签，查询其有效发票，再按开票日期筛出 2026 年 11 月，金额合计多少分？</question><answer>3000</answer></qa_pair>
+  <qa_pair><question>遍历所有有效发票并比较金额，再读取金额最高一张的详情核对，其发票号码是什么？</question><answer>10000004</answer></qa_pair>
+  <qa_pair><question>在项目库定位说明涉及电脑与配件的项目，分页查询关联发票并排除回收站，共多少张有效发票？</question><answer>2</answer></qa_pair>
+  <qa_pair><question>比较有效发票查询、回收站查询和应用概况，核对后回收站中共有多少张发票？</question><answer>1</answer></qa_pair>
+</evaluation>
