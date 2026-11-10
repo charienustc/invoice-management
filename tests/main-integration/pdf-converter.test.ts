@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { convertPdfToPng } from '../../src/main/ocr/pdf-converter'
 import { cjkPdf } from '../fixtures/cjk-pdf'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
+import { mkdir, writeFile } from 'node:fs/promises'
 
 describe('PDF 转图', () => {
   it('拒绝极端长页和过多页面，超时会终止独立解析进程', async () => {
@@ -16,7 +17,11 @@ describe('PDF 转图', () => {
   it('离线渲染依赖 Adobe CMap 的非嵌入中文字体及页面底部', async () => {
     const images = await convertPdfToPng(Buffer.from(await cjkPdf()))
     expect(images).toHaveLength(2)
-    for (const data of images) {
+    for (const [index, data] of images.entries()) {
+      if (process.env.CI) {
+        await mkdir('.tmp/pdf-regression', { recursive: true })
+        await writeFile(`.tmp/pdf-regression/page-${index + 1}.png`, data)
+      }
       const image = await loadImage(data)
       const ctx = createCanvas(image.width, image.height).getContext('2d')
       ctx.drawImage(image, 0, 0)
@@ -24,7 +29,7 @@ describe('PDF 转图', () => {
         const pixels = ctx.getImageData(0, top, image.width, height).data
         let dark = 0
         for (let i = 0; i < pixels.length; i += 4) if (pixels[i] < 100 && pixels[i+1] < 100 && pixels[i+2] < 100) dark++
-        expect(dark).toBeGreaterThan(150)
+        expect(dark, `page=${index + 1}, regionTop=${top}, size=${image.width}x${image.height}`).toBeGreaterThan(150)
       }
     }
   })
