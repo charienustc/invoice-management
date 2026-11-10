@@ -22,6 +22,18 @@ jobs:
       - run: npm run verify:release -- --source-only
       - run: npm audit --registry=https://registry.npmjs.org
       - run: npm run typecheck
+      - name: Install Chinese font for PDF and OCR tests
+        shell: pwsh
+        run: |
+          $fontDirectory = Join-Path $env:LOCALAPPDATA 'Microsoft/Windows/Fonts'
+          New-Item -ItemType Directory -Path $fontDirectory -Force | Out-Null
+          $fontPath = Join-Path $fontDirectory 'NotoSansCJKsc-Regular.otf'
+          curl.exe --fail --location --retry 3 --output $fontPath 'https://raw.githubusercontent.com/notofonts/noto-cjk/523d033d6cb47f4a80c58a35753646f5c3608a78/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf'
+          if ($LASTEXITCODE -ne 0) { throw 'Chinese font download failed' }
+          if ((Get-FileHash -LiteralPath $fontPath -Algorithm SHA256).Hash -ne '2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B') { throw 'Chinese font checksum mismatch' }
+          $fontRegistry = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts'
+          New-Item -Path $fontRegistry -Force | Out-Null
+          New-ItemProperty -Path $fontRegistry -Name 'Noto Sans CJK SC (OpenType)' -Value $fontPath -PropertyType String -Force | Out-Null
       - run: npm test
       - run: npm run test:e2e
       - name: Prepare OCR build environment
