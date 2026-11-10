@@ -620,8 +620,14 @@ test('通用设置持久化、导入偏好、存储入口与 OCR 设置离开保
   await expect(page.getByRole('button', { name: '切换侧栏', exact: true })).toHaveAttribute('aria-expanded', 'false')
   const windowState = JSON.parse(await readFile(join(directory, 'window-state.json'), 'utf8'))
   expect(windowState.width).toBeGreaterThanOrEqual(1200)
-  // Native borders can round by one DIP when restored on a scaled Windows display.
-  expect(Math.abs(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getNormalBounds().width) - windowState.width)).toBeLessThanOrEqual(1)
+  // Restoration must also fit the current display (CI can have a smaller screen).
+  // Native borders can round by one DIP on a scaled Windows display.
+  await expect.poll(() => app.evaluate(({ BrowserWindow, screen }, savedWidth) => {
+    const bounds = BrowserWindow.getAllWindows()[0].getNormalBounds()
+    const available = screen.getDisplayMatching(bounds).workArea.width
+    const expectedWidth = Math.max(1080, Math.min(savedWidth, available))
+    return Math.abs(bounds.width - expectedWidth)
+  }, windowState.width)).toBeLessThanOrEqual(1)
   await page.getByRole('button', { name: '切换侧栏', exact: true }).click()
   await page.getByRole('navigation', { name: '项目列表' }).getByRole('link', { name: /未分配/ }).click()
   const unassignedSource = join(directory, 'unassigned.png')
