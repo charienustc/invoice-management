@@ -1,5 +1,5 @@
 // Standalone Electron/Node subprocess. Do not log invoice content to stdout.
-import { createCanvas } from '@napi-rs/canvas'
+import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { createRequire } from 'node:module'
 import { dirname, join, sep } from 'node:path'
@@ -7,6 +7,13 @@ const require = createRequire(import.meta.url)
 const resources = dirname(require.resolve('pdfjs-dist/package.json'))
 const limits = JSON.parse(process.argv[2])
 const resource = name => `${join(resources, name)}${sep}`.replaceAll('\\', '/')
+// Native canvas generic-family fallback can select a Latin font on Windows
+// Server even when a CJK font is installed. Match PDF.js' STSong substitution
+// explicitly, so non-embedded Chinese glyphs do not become empty boxes.
+const serif = ['SimSun', 'Noto Serif CJK SC', 'Songti SC'].find(name => GlobalFonts.has(name))
+const sans = ['Microsoft YaHei', 'Noto Sans CJK SC', 'PingFang SC'].find(name => GlobalFonts.has(name))
+if (serif) for (const alias of ['serif', 'STSong', 'STSong-Light']) GlobalFonts.setAlias(serif, alias)
+if (sans) GlobalFonts.setAlias(sans, 'sans-serif')
 function check(width, height) {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 || width > limits.edge || height > limits.edge || width * height > limits.pagePixels) {
     throw Object.assign(new Error('PDF 页面尺寸过大或无效，请缩小页面后重试'), { code: 'PDF_TOO_LARGE' })
