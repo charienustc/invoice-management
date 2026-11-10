@@ -89,7 +89,7 @@ try {
   const canvas = createCanvas(1200, 820)
   const ctx = canvas.getContext('2d')
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.fillStyle = '#111'; ctx.font = '28px "Microsoft YaHei"'
+  ctx.fillStyle = '#111'; ctx.font = '28px "Noto Sans CJK SC", "Microsoft YaHei"'
   const sample = [
     '电子发票（普通发票）', '发票号码：12345678901234567890', '开票日期：2026年11月06日',
     '购买方 名称：测试购买公司', '纳税人识别号：91310000ABCDEF1234',
@@ -184,7 +184,7 @@ try {
   ]) {
     const travel = createCanvas(1600, 850), context = travel.getContext('2d')
     context.fillStyle = kind === 'railway' ? '#dff3f5' : '#ffffff'; context.fillRect(0, 0, 1600, 850)
-    context.fillStyle = '#111'; context.font = '32px "Microsoft YaHei"'
+    context.fillStyle = '#111'; context.font = '32px "Noto Sans CJK SC", "Microsoft YaHei"'
     text.forEach((line, index) => context.fillText(line, 55, 70 + index * 85))
     const filePath = join(dataDirectory, `${kind}.pdf`)
     const document = await PDFDocument.create(), image = await document.embedPng(travel.toBuffer('image/png'))

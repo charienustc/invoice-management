@@ -430,7 +430,7 @@ test('校对字段联动多页原件、高亮随缩放对齐，并生成选中�
   const bbox = [[100, 90], [700, 90], [700, 140], [100, 140]]
   for (const text of ['发票号码：12345678', '价税合计（小写）¥106.00']) {
     const image = createCanvas(1200, 800), ctx = image.getContext('2d')
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1200, 800); ctx.fillStyle = '#111'; ctx.font = '32px "Microsoft YaHei"'; ctx.fillText(text, 100, 130)
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1200, 800); ctx.fillStyle = '#111'; ctx.font = '32px "Noto Sans CJK SC", "Microsoft YaHei"'; ctx.fillText(text, 100, 130)
     const png = await pdf.embedPng(image.toBuffer('image/png'))
     pdf.addPage([600, 400]).drawImage(png, { x: 0, y: 0, width: 600, height: 400 })
   }

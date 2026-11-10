@@ -27,13 +27,8 @@ jobs:
         run: |
           $fontDirectory = Join-Path $env:WINDIR 'Fonts'
           New-Item -ItemType Directory -Path $fontDirectory -Force | Out-Null
-          $fontPath = Join-Path $fontDirectory 'NotoSansCJKsc-Regular.otf'
-          curl.exe --fail --location --retry 3 --output $fontPath 'https://raw.githubusercontent.com/notofonts/noto-cjk/523d033d6cb47f4a80c58a35753646f5c3608a78/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf'
-          if ($LASTEXITCODE -ne 0) { throw 'Chinese font download failed' }
-          if ((Get-FileHash -LiteralPath $fontPath -Algorithm SHA256).Hash -ne '2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B') { throw 'Chinese font checksum mismatch' }
           $fontRegistry = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts'
           New-Item -Path $fontRegistry -Force | Out-Null
-          New-ItemProperty -Path $fontRegistry -Name 'Noto Sans CJK SC (OpenType)' -Value $fontPath -PropertyType String -Force | Out-Null
           Add-Type -TypeDefinition @'
           using System;
           using System.Runtime.InteropServices;
@@ -42,9 +37,21 @@ jobs:
             [DllImport("user32.dll")] public static extern bool SendNotifyMessageW(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
           }
           '@
-          if ([FontRegistration]::AddFontResourceW($fontPath) -eq 0) { throw 'Chinese font registration failed' }
+          $fonts = @(
+            @{ Folder = 'Sans'; Name = 'NotoSansCJKsc-Regular.otf'; Family = 'Noto Sans CJK SC'; Hash = '2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B' },
+            @{ Folder = 'Serif'; Name = 'NotoSerifCJKsc-Regular.otf'; Family = 'Noto Serif CJK SC'; Hash = '18E4072F01DAD3965A72AE8AFEE7D6DAC447C4EB6D454E0084ED5C9C1FC0091F' }
+          )
+          foreach ($font in $fonts) {
+            $fontPath = Join-Path $fontDirectory $font.Name
+            $url = "https://raw.githubusercontent.com/notofonts/noto-cjk/523d033d6cb47f4a80c58a35753646f5c3608a78/$($font.Folder)/OTF/SimplifiedChinese/$($font.Name)"
+            curl.exe --fail --location --retry 3 --output $fontPath $url
+            if ($LASTEXITCODE -ne 0) { throw 'Chinese font download failed' }
+            if ((Get-FileHash -LiteralPath $fontPath -Algorithm SHA256).Hash -ne $font.Hash) { throw 'Chinese font checksum mismatch' }
+            New-ItemProperty -Path $fontRegistry -Name "$($font.Family) (OpenType)" -Value $fontPath -PropertyType String -Force | Out-Null
+            if ([FontRegistration]::AddFontResourceW($fontPath) -eq 0) { throw 'Chinese font registration failed' }
+          }
           [FontRegistration]::SendNotifyMessageW([IntPtr]0xffff, 0x001d, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
-          node --input-type=module -e "import { GlobalFonts } from '@napi-rs/canvas'; if (!GlobalFonts.has('Noto Sans CJK SC')) throw new Error('Chinese font unavailable to canvas'); console.log('Chinese font ready')"
+          node --input-type=module -e "import { GlobalFonts } from '@napi-rs/canvas'; for (const family of ['Noto Sans CJK SC','Noto Serif CJK SC']) if (!GlobalFonts.has(family)) throw new Error(family+' unavailable to canvas'); console.log('Chinese sans and serif fonts ready')"
       - run: npm test
       - run: npm run test:e2e
       - name: Prepare OCR build environment
