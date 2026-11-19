@@ -373,6 +373,7 @@ export interface InvoiceApi extends McpApi, AdvanceApi {
   deleteProject: (id: string) => Promise<void>
   setInvoiceProjects: (ids: string[], projectIds: string[]) => Promise<number>
   importFiles: (projectId?: string | null) => Promise<ImportSummary>
+  importDroppedFiles: (files: File[], projectId?: string | null) => Promise<ImportSummary>
   getAppSettings: () => Promise<AppSettings>
   saveAppSettings: (settings: AppSettings) => Promise<AppSettings>
   getApplicationInfo: () => Promise<ApplicationInfo>

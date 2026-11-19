@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { PDFDocument, StandardFonts } from 'pdf-lib'
+import { PDFDocument, StandardFonts, pushGraphicsState, popGraphicsState, rectangle, clip, endPath, rgb } from 'pdf-lib'
 import { convertPdfToPng } from '../../src/main/ocr/pdf-converter'
 import { cjkPdf } from '../fixtures/cjk-pdf'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { mkdir, writeFile } from 'node:fs/promises'
 
 describe('PDF 转图', () => {
+  it('渲染矢量路径与裁剪区域，区域外保持空白', async () => {
+    const pdf = await PDFDocument.create()
+    const page = pdf.addPage([200, 160])
+    page.pushOperators(pushGraphicsState(), rectangle(30, 40, 80, 70), clip(), endPath())
+    page.drawRectangle({ x: 0, y: 0, width: 200, height: 160, color: rgb(1, 0, 0) })
+    page.pushOperators(popGraphicsState())
+    page.drawSvgPath('M 130 20 C 160 0 180 20 175 40 L 130 40 Z', { x: 0, y: 100, color: rgb(0, 0, 1) })
+    const images = await convertPdfToPng(Buffer.from(await pdf.save()))
+    const image = await loadImage(images[0])
+    const ctx = createCanvas(image.width, image.height).getContext('2d'); ctx.drawImage(image, 0, 0)
+    expect(Array.from(ctx.getImageData(100, 160, 1, 1).data)).toEqual([255, 0, 0, 255])
+    expect(Array.from(ctx.getImageData(20, 160, 1, 1).data)).toEqual([255, 255, 255, 255])
+  })
   it('拒绝极端长页和过多页面，超时会终止独立解析进程', async () => {
     const huge = await PDFDocument.create(); huge.addPage([1000, 1_000_000])
     await expect(convertPdfToPng(Buffer.from(await huge.save()))).rejects.toMatchObject({ code: 'PDF_TOO_LARGE' })

@@ -14,7 +14,7 @@
         <div class="setting-row switch-row"><label>启动时展开侧栏</label><el-switch v-model="general.sidebarExpanded" aria-label="启动时展开侧栏" /></div>
       </div>
       <div class="setting-group panel"><h2>导入</h2>
-        <div class="setting-row switch-row"><div><label>导入后自动识别</label><small>关闭后保留为待识别，可手动重新识别</small></div><el-switch v-model="general.autoRecognize" aria-label="导入后自动识别" /></div>
+        <div class="setting-row switch-row"><div><label>导入后自动识别</label><small>仅影响“导入发票”按钮，拖入文件直接识别</small></div><el-switch v-model="general.autoRecognize" aria-label="导入后自动识别" /></div>
         <div class="setting-row"><div><label>默认项目</label><small>在项目中导入时，优先归入当前项目</small></div><el-select v-model="general.defaultProjectId" aria-label="默认项目" filterable><el-option label="未分配" :value="''" /><el-option v-for="project in projects.items" :key="project.id" :label="project.name" :value="project.id" /></el-select></div>
       </div>
       </div>

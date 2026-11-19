@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import type { IpcResponse, InvoiceApi, OcrProgress } from '@shared/contracts'
 
 async function invoke<T>(channel: string, input?: unknown): Promise<T> {
@@ -33,6 +33,12 @@ const api: InvoiceApi = {
   deleteProject: (id) => invoke('projects:delete', id),
   setInvoiceProjects: (ids, projectIds) => invoke('invoices:projects-set', { ids, projectIds }),
   importFiles: (projectId) => invoke('files:import', projectId),
+  importDroppedFiles: (files, projectId) => {
+    if (!files.length || files.length > 100) throw new Error('每次可拖入 1 至 100 个文件')
+    const paths = files.map(file => webUtils.getPathForFile(file))
+    if (paths.some(path => !path)) throw new Error('请从本机文件夹拖入发票文件')
+    return invoke('files:drop', { paths, projectId })
+  },
   getAppSettings: () => invoke('preferences:get'),
   saveAppSettings: (settings) => invoke('preferences:save', settings),
   getApplicationInfo: () => invoke('application:info'),

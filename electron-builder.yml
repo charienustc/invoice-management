@@ -19,11 +19,14 @@ extraResources:
     to: ocr
     filter: ['**/*']
 win:
+  icon: resources/icons/app.ico
   target:
     - target: nsis
       arch: [x64]
   artifactName: Invoice-Management-${version}-Windows-x64.${ext}
 nsis:
+  installerIcon: resources/icons/app.ico
+  uninstallerIcon: resources/icons/app.ico
   oneClick: false
   perMachine: false
   selectPerMachineByDefault: false

@@ -8,7 +8,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { createCanvas } from '@napi-rs/canvas'
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } from 'pdf-lib'
 
 const temporaryRoot = resolve('.tmp')
 await mkdir(temporaryRoot, { recursive: true })
@@ -41,6 +41,15 @@ try {
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   await expect(page).toHaveTitle('发票管理')
+  const favicon = await page.evaluate(() => new Promise(resolve => {
+    const image = new Image()
+    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight })
+    image.onerror = () => resolve(null)
+    image.src = document.querySelector('link[rel="icon"]').href
+  }))
+  expect(favicon).toEqual({ width: 1254, height: 1254 })
+  const shellIcon = await application.evaluate(async ({ app }, file) => (await app.getFileIcon(file, { size: 'large' })).toPNG().toString('base64'), executablePath)
+  await writeFile(resolve(`artifacts/${version}/application-icon.png`), Buffer.from(shellIcon, 'base64'))
   await expect(page.getByRole('banner', { name: '窗口标题栏' })).toBeVisible()
   await expect(page.getByRole('button', { name: '切换侧栏', exact: true })).toBeVisible()
   expect(await page.evaluate(() => navigator.windowControlsOverlay?.visible ?? false)).toBe(true)
@@ -103,11 +112,20 @@ try {
   await writeFile(imagePath, png)
   const pdf = await PDFDocument.create()
   const pdfImage = await pdf.embedPng(png)
-  pdf.addPage([600, 410]).drawImage(pdfImage, { x: 0, y: 0, width: 600, height: 410 })
+  const clippedPage = pdf.addPage([600, 410])
+  clippedPage.pushOperators(pushGraphicsState(), rectangle(0, 0, 600, 410), clip(), endPath())
+  clippedPage.drawImage(pdfImage, { x: 0, y: 0, width: 600, height: 410 })
+  clippedPage.pushOperators(popGraphicsState())
   await writeFile(pdfPath, await pdf.save())
-  await application.evaluate(({ dialog }, paths) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: paths }) }, [imagePath, pdfPath])
-  const imported = await page.evaluate(() => window.invoiceApi.importFiles())
-  expect(imported.failures).toEqual([])
+  await page.getByRole('link', { name: '发票管理', exact: true }).click()
+  await expect.poll(() => page.locator('.invoice-list').evaluate(node => getComputedStyle(node).opacity)).toBe('1')
+  const dropSession = await page.context().newCDPSession(page)
+  const dropBox = await page.locator('.table-wrap').boundingBox()
+  const dropData = { items: [], files: [imagePath, pdfPath], dragOperationsMask: 1 }
+  for (const type of ['dragEnter', 'dragOver', 'drop']) await dropSession.send('Input.dispatchDragEvent', { type, x: dropBox.x + 100, y: dropBox.y + 100, data: dropData })
+  await dropSession.detach()
+  await expect.poll(() => page.evaluate(async () => (await window.invoiceApi.listInvoices({ page: 1, pageSize: 20 })).total)).toBe(2)
+  const imported = { imported: (await page.evaluate(() => window.invoiceApi.listInvoices({ page: 1, pageSize: 20 }))).items }
   expect(imported.imported).toHaveLength(2)
   for (const { id } of imported.imported) {
     await expect.poll(() => page.evaluate(async (id) => (await window.invoiceApi.getInvoice(id)).invoice.ocrStatus, id), { timeout: 60000 }).toBe('succeeded')
@@ -117,8 +135,8 @@ try {
     expect(detail.ocrResults[0].evidence.invoiceNumber.region).toMatchObject({ page: 1, imageWidth: 1200, imageHeight: 820 })
   }
   expect((await page.evaluate(() => window.invoiceApi.getOcrServiceStatus())).pid).toBe(workerPid)
-  await writeFile(resolve(`artifacts/${version}/ocr-settings.png`), Buffer.from(await application.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString('base64')), 'base64'))
-  console.log('Packaged offline OCR passed: real CPU worker, PNG + PDF, parsed fields, process reuse')
+  await writeFile(resolve(`artifacts/${version}/invoice-drop-ocr.png`), Buffer.from(await application.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString('base64')), 'base64'))
+  console.log('Packaged offline drop OCR passed: native file drag, real CPU worker, PNG + PDF, parsed fields, process reuse')
   await application.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }) }, dataDirectory)
   const bundle = await page.evaluate(ids => window.invoiceApi.exportReimbursementBundle({ invoiceIds: ids }), imported.imported.map(invoice => invoice.id))
   expect(bundle.count).toBe(2)

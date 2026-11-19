@@ -1,5 +1,6 @@
 <template>
   <section class="invoice-list" :data-layout="listLayout">
+    <Transition name="file-drop"><div v-if="dragActive" class="invoice-drop-overlay" role="status" aria-live="polite"><el-icon><Upload /></el-icon><strong>松开以导入并识别</strong><span>{{ currentProject ? `添加到「${currentProject.name}」` : projectScope === null ? '添加到未分配' : '支持 PDF、JPG、PNG、BMP 和 WebP' }}</span></div></Transition>
 
     <div v-if="projectScope !== undefined" class="invoice-project-tabs"><span>发票</span><RouterLink :to="{path: '/advances', query: route.query}">垫付记录</RouterLink></div>
     <div class="toolbar">
@@ -81,7 +82,7 @@
         <el-table-column v-if="wideList" key="ocr" label="OCR" width="100"><template #default="{ row }"><TextBadge :label="ocrStatusMeta[row.ocrStatus as OcrStatus].text" :tone="ocrStatusMeta[row.ocrStatus as OcrStatus].type" variant="status" /></template></el-table-column>
         <el-table-column v-if="!compactList" key="review" :label="wideList ? '审核状态' : '识别 / 审核'" :width="wideList ? 100 : 112"><template #default="{ row }"><div class="processing-status"><TextBadge v-if="!wideList" :label="ocrStatusMeta[row.ocrStatus as OcrStatus].text" :tone="ocrStatusMeta[row.ocrStatus as OcrStatus].type" variant="status" /><TextBadge :label="reviewStatusMeta[row.reviewStatus as ReviewStatus].text" :tone="reviewStatusMeta[row.reviewStatus as ReviewStatus].type" variant="status" /></div></template></el-table-column>
         <el-table-column key="actions" label="操作" :width="compactList ? 64 : 80" align="center"><template #default="{ row }"><el-button link type="primary" @click.stop="openDetail(row)">查看</el-button></template></el-table-column>
-          <template #empty><div class="invoice-empty"><strong>{{ trashMode ? '回收站为空' : hasFilters ? '没有找到匹配的发票' : '暂无发票' }}</strong><p>{{ hasFilters ? '试试其他关键字，或重置筛选条件' : trashMode ? '移入回收站的发票会显示在这里' : '支持 PDF、JPG、PNG、BMP 和 WebP 文件。' }}</p><el-button v-if="hasFilters" @click="reset">重置筛选</el-button><el-button v-else-if="!trashMode" type="primary" :icon="Upload" :loading="importing" @click="importFiles">导入发票</el-button></div></template>
+          <template #empty><div class="invoice-empty"><strong>{{ trashMode ? '回收站为空' : hasFilters ? '没有找到匹配的发票' : '暂无发票' }}</strong><p>{{ hasFilters ? '试试其他关键字，或重置筛选条件' : trashMode ? '移入回收站的发票会显示在这里' : '拖入 PDF、JPG、PNG、BMP 或 WebP 文件即可添加并识别。' }}</p><el-button v-if="hasFilters" @click="reset">重置筛选</el-button><el-button v-else-if="!trashMode" type="primary" :icon="Upload" :loading="importing" @click="importFiles">导入发票</el-button></div></template>
         </el-table>
       </div>
       <div class="pagination-bar"><span v-if="focusedInvoice" class="keyboard-hint">空格预览 · 回车校对</span><el-pagination background :pager-count="5" layout="total, sizes, prev, pager, next" :total="store.total" :current-page="store.query.page" :page-size="store.query.pageSize" :page-sizes="[10, 20, 50, 100]" @current-change="store.updateQuery({ page: $event })" @size-change="store.updateQuery({ page: 1, pageSize: $event })" /></div>
@@ -150,6 +151,7 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined
 function focusRow(invoice: Invoice): void { tableContainer.value?.focus({ preventScroll: true }); focusedId.value = invoice.id; tableRef.value?.setCurrentRow(invoice) }
 function openFocused(): void { if (focusedInvoice.value) openDetail(focusedInvoice.value) }
 function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') resetDrag()
   if (document.querySelector('.el-overlay:not([style*="display: none"])')) return
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') { event.preventDefault(); searchInput.value?.focus(); return }
   const target = event.target as HTMLElement
@@ -256,10 +258,39 @@ async function refreshTags(): Promise<void> {
 function refresh(): Promise<void[]> {
   return Promise.all([store.fetchList(), refreshTags(), projects.fetch()])
 }
-async function importFiles(): Promise<void> {
+const dragActive = ref(false)
+let dragDepth = 0
+const hasFiles = (event: DragEvent): boolean => !!event.dataTransfer?.types.includes('Files')
+function canDrop(): boolean { return !trashMode.value && !importing.value && !document.querySelector('.el-overlay:not([style*="display: none"])') }
+function resetDrag(): void { dragDepth = 0; dragActive.value = false }
+function onDragEnter(event: DragEvent): void {
+  if (!hasFiles(event)) return
+  event.preventDefault()
+  if (canDrop()) { dragDepth++; dragActive.value = true }
+}
+function onDragOver(event: DragEvent): void {
+  if (!hasFiles(event)) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = canDrop() ? 'copy' : 'none'
+}
+function onDragLeave(event: DragEvent): void {
+  if (!hasFiles(event)) return
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (!dragDepth) resetDrag()
+}
+function onDrop(event: DragEvent): void {
+  if (!hasFiles(event)) return
+  event.preventDefault()
+  const allowed = canDrop()
+  resetDrag()
+  const files = Array.from(event.dataTransfer?.files ?? [])
+  if (allowed && files.length) void importFiles(files)
+}
+async function importFiles(files?: File[] | Event): Promise<void> {
+  if (importing.value) return
   importing.value = true
   try {
-    const result = await api.importFiles(projectScope)
+    const result = Array.isArray(files) ? await api.importDroppedFiles(files, projectScope) : await api.importFiles(projectScope)
     if (!result.imported.length && !result.duplicates.length && !result.failures.length && !result.warnings?.length) return
     if (result.warnings?.length) ElMessage.warning(result.warnings.join('；'))
     ElNotification({ customClass: 'app-notification', title: '导入完成', message: `新增 ${result.imported.length} 张，重复 ${result.duplicates.length} 个，失败 ${result.failures.length} 个${result.failures.length ? `：${result.failures[0].message}` : ''}`, type: result.failures.length ? 'warning' : 'success' })
@@ -335,12 +366,26 @@ onMounted(() => {
   }
   void refresh().catch((error) => ElMessage.error(errorMessage(error)))
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('dragenter', onDragEnter)
+  window.addEventListener('dragover', onDragOver)
+  window.addEventListener('dragleave', onDragLeave)
+  window.addEventListener('drop', onDrop)
+  window.addEventListener('blur', resetDrag)
+  window.addEventListener('dragend', resetDrag)
 })
-onBeforeUnmount(() => { resizeObserver?.disconnect(); if (searchTimer) clearTimeout(searchTimer); window.removeEventListener('keydown', onKeydown) })
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect(); if (searchTimer) clearTimeout(searchTimer); window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('dragenter', onDragEnter); window.removeEventListener('dragover', onDragOver)
+  window.removeEventListener('dragleave', onDragLeave); window.removeEventListener('drop', onDrop); window.removeEventListener('blur', resetDrag)
+  window.removeEventListener('dragend', resetDrag)
+})
 </script>
 
 <style scoped>
-.invoice-list { min-width: 0; width: 100%; container: invoice / inline-size; }
+.invoice-list { position: relative; min-width: 0; width: 100%; container: invoice / inline-size; }
+.invoice-drop-overlay { position: absolute; inset: 12px; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; overflow-wrap: anywhere; pointer-events: none; border: 2px dashed var(--primary); border-radius: 12px; background: light-dark(#f4f8ff, #1c2939); color: var(--el-text-color-primary); box-shadow: inset 0 0 0 5px light-dark(#fff8, #ffffff08); }
+.invoice-drop-overlay .el-icon { font-size: 32px; color: var(--primary); }.invoice-drop-overlay strong { font-size: 18px; font-weight: 600; }.invoice-drop-overlay span { color: var(--muted); font-size: 13px; }
+.file-drop-enter-active, .file-drop-leave-active { transition: opacity 100ms ease; }.file-drop-enter-from, .file-drop-leave-to { opacity: 0; }
 .toolbar-title { max-width: 100%; min-width: 0; }.toolbar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }.list-count { flex: none; }
 .invoice-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; margin-top: 5px; font-size: 11px; color: var(--muted); }.invoice-meta time { flex: none; font-variant-numeric: tabular-nums; }.invoice-meta > span { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .compact-parties { margin-top: 7px; font-size: 11px; line-height: 1.6; color: var(--el-text-color-regular); }.compact-parties > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.processing-status { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 5px; }

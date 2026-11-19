@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, clipboard } from 'electron'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { z } from 'zod'
 import {
   batchTagsInputSchema,
@@ -193,6 +193,13 @@ export function registerIpc(services: IpcServices): void {
     return importWithPreferences(result.filePaths, contextProject)
   })
   handle('files:get-data', async (input) => (await services.imports.readInvoiceFile(idSchema.parse(input))).data)
+  handle('files:drop', async input => {
+    const value = z.object({ paths: z.array(z.string().min(1).max(32_767).refine(isAbsolute)).min(1).max(100), projectId: idSchema.nullable().optional() }).parse(input)
+    const summary = await importWithPreferences(value.paths, value.projectId)
+    for (const invoice of summary.imported) if (invoice.ocrStatus === 'pending') services.queue.enqueue(invoice.id)
+    summary.imported = summary.imported.map(invoice => services.db.get(invoice.id) ?? invoice)
+    return summary
+  })
   handle('invoices:list', (input) => services.db.list(invoiceQuerySchema.parse(input ?? {})))
   handle('invoices:get', (input) => services.invoices.detail(idSchema.parse(input)))
   handle('invoices:save', (input) => {

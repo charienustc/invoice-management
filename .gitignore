@@ -25,6 +25,7 @@
 /docs/audit-*.md
 /docs/release-readiness-*.md
 /resources/third-party-npm.json
+/resources/icons/*.ico
 
 node_modules/
 out/

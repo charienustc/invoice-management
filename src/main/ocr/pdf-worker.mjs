@@ -1,10 +1,13 @@
 // Standalone Electron/Node subprocess. Do not log invoice content to stdout.
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { createRequire } from 'node:module'
 import { dirname, join, sep } from 'node:path'
 const require = createRequire(import.meta.url)
-const resources = dirname(require.resolve('pdfjs-dist/package.json'))
+const pdfPackage = require.resolve('pdfjs-dist/package.json')
+// Path2D and canvas contexts must come from the same native binding. PDF.js
+// resolves its own canvas dependency, which may differ from the app's version.
+const { createCanvas, GlobalFonts } = createRequire(pdfPackage)('@napi-rs/canvas')
+const resources = dirname(pdfPackage)
 const limits = JSON.parse(process.argv[2])
 const resource = name => `${join(resources, name)}${sep}`.replaceAll('\\', '/')
 // Native canvas generic-family fallback can select a Latin font on Windows

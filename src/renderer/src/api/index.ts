@@ -28,6 +28,7 @@ export const api: InvoiceApi = {
   deleteProject: (id) => raw.deleteProject(id),
   setInvoiceProjects: (ids, projectIds) => raw.setInvoiceProjects(ids, projectIds),
   importFiles: (projectId) => raw.importFiles(projectId),
+  importDroppedFiles: (files, projectId) => raw.importDroppedFiles(files, projectId),
   getAppSettings: () => raw.getAppSettings(),
   saveAppSettings: (settings) => raw.saveAppSettings(plain(settings)),
   getApplicationInfo: () => raw.getApplicationInfo(),

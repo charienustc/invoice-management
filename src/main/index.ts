@@ -45,6 +45,7 @@ function createWindow(): BrowserWindow {
     show: false,
     backgroundColor: windowColors().background,
     title: '发票管理',
+    icon: join(app.getAppPath(), 'resources/icons/app.png'),
     titleBarStyle: 'hidden',
     titleBarOverlay: { color: windowColors().titlebar, symbolColor: windowColors().symbol, height: 38 },
     webPreferences: {
